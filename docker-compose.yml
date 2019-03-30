@@ -1,10 +1,10 @@
-version: '3'
+version: '3.7'
 services:
-  ctf_name:
+  ctf_default:
     build:
       context: .
     working_dir: /home/ctf
-    container_name: ctf_name
+    container_name: ctf_default
     ports:
       - "31337:31337"
-    entrypoint: /etc/chall_init.sh
+    entrypoint: "/usr/sbin/xinetd -dontfork"
