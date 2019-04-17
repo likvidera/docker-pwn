@@ -1,6 +1,7 @@
 # Docker-PWN
 
-add flag to files/  
-add challenge binary as files/chall  
-edit port, name in docker-compose.yml  
-./run
+add 'flag' and challenge binary as 'chall' to files/
+# if you need to install docker and other deps
+make deps
+make init NAME="challname" PORT="port"
+make run
