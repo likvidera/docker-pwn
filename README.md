@@ -1,7 +1,7 @@
 # Docker-PWN
+'Minimalistic' docker-container for pwnables
 
-add 'flag' and challenge binary as 'chall' to files/
-# if you need to install docker and other deps
-make deps
-make init NAME="challname" PORT="port"
-make run
+* add 'flag' and challenge binary as 'chall' to files/  
+* make deps  (docker, docker-compose)
+* make init NAME="challname" PORT="port"  
+* make run  
