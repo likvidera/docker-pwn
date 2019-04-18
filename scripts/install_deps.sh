@@ -65,6 +65,5 @@ function install_docker_compose() {
 }
 
 check_root
-install_deps
 install_docker
 install_docker_compose
