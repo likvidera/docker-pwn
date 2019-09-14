@@ -10,7 +10,7 @@ RUN groupadd -r ctf && useradd -r -g ctf ctf
 ADD ctf.xinetd /etc/xinetd.d/ctf
 ADD ./files/ /home/ctf/
 
-RUN chmod 400 /home/ctf/*
+RUN chmod 440 /home/ctf/*
 RUN chown -R root:ctf /home/ctf
 RUN chmod 750 /home/ctf/redir.sh
 RUN chmod 750 /home/ctf/chall
