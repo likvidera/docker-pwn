@@ -5,7 +5,6 @@ set -e
 trap handle_error ERR ; set -o errtrace
 trap clean EXIT
 
-basedir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 xinetd_file="data/ctf.xinetd"
 run_file="data/run"
 image="likvidera/docker-pwn"
@@ -122,6 +121,7 @@ usage() {
 }
 
 echo "[*] Docker-PWN"
+is_docker_installed
 while getopts "p:n:t:sdfrxh" opt; do
     case "$opt" in
         p)
@@ -192,6 +192,5 @@ while getopts "p:n:t:sdfrxh" opt; do
 done
 shift $((OPTIND-1))
 
-is_docker_installed
 docker_run
 exit 0
