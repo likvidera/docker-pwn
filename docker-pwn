@@ -1,0 +1,197 @@
+#!/bin/bash
+
+set -e
+
+trap handle_error ERR ; set -o errtrace
+trap clean EXIT
+
+basedir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+xinetd_file="data/ctf.xinetd"
+run_file="data/run"
+image="likvidera/docker-pwn"
+name="docker-pwn"
+timeout=0
+force_rebuild=0
+build_args=()
+run_args=()
+port="1337"
+
+bold="\033[1m"
+red="\033[0;31m"
+nrm="\033[0m"
+
+function handle_error() {
+    echo -e "${red}${bold}[-] Command failed: Exiting...${nrm}"
+    echo -e "${red}[-] $BASH_SOURCE:$LINENO: $BASH_COMMAND${nrm}"
+}
+
+function clean()
+{
+    if [ -f "$xinetd_file" ]; then
+        rm "$xinetd_file"
+    fi
+    if [ -f "$run_file" ]; then
+        rm "$run_file"
+    fi
+}
+
+function is_docker_installed() {
+    if ! type "docker" > /dev/null 2>&1; then
+        echo -e "${red}${bold}[-] Docker is not installed: Exiting...${nrm}"
+        exit 1
+    fi
+}
+
+function image_setup()
+{
+    cp "$xinetd_file.template" "$xinetd_file"
+    sed -i "s/_REPLACE_PORT_/$port/g" "$xinetd_file"
+
+    cp "$run_file.template" "$run_file"
+    if [ $timeout -ne 0 ]; then
+        echo "[+] Configured timeout to : $timeout"
+        sed -i "s/_REPLACE_CMDLINE_/timeout -k $timeout $timeout .\/chall/g" "$run_file"
+    else
+        sed -i "s/_REPLACE_CMDLINE_/.\/chall/g" "$run_file"
+    fi
+}
+
+function dump_libc()
+{
+    echo "[*] Dumping system libraries from: $image-$name"
+    if [ ! -d "libc" ]; then
+        mkdir libc
+    fi
+
+    docker exec "$name" bash -c "rm -rf /tmp/libc"
+
+    docker exec "$name" bash -c "mkdir -p /tmp/libc/64"
+    docker exec "$name" bash -c "cp /lib/x86_64-linux-gnu/ld-*.so  /tmp/libc/64"
+    docker exec "$name" bash -c "cp /lib/x86_64-linux-gnu/libc-*.so  /tmp/libc/64"
+    docker cp "$name":/tmp/libc/64 libc/64
+
+    docker exec "$name" bash -c "mkdir -p /tmp/libc/32"
+    docker exec "$name" bash -c "cp /lib32/ld-*.so  /tmp/libc/32"
+    docker exec "$name" bash -c "cp /lib32/libc-*.so  /tmp/libc/32"
+    docker cp "$name":/tmp/libc/32 libc/32
+
+    docker exec "$name" bash -c "rm -rf /tmp/libc"
+}
+
+function docker_build()
+{
+    if [ -z "$(docker images -q "$image-$name")" ] || [ "$force_rebuild" = 1 ]; then
+        echo "[*] Building docker image: $image-$name"
+        docker build "${build_args[@]}" -t "$image-$name" .
+    fi
+}
+
+function docker_stop()
+{
+    if [ "$(docker ps -q -f name="$name")" ]; then
+        docker stop "$name" >/dev/null
+    fi
+}
+
+function docker_shell()
+{
+    exec docker exec -it "$name" bash
+}
+
+function docker_run()
+{
+    image_setup
+    docker_stop
+    docker_build
+    run_args+=(-p "$port:$port")
+    echo "[+] Running docker image: $image-$name"
+    docker run "${run_args[@]}" --name "$name" -d --rm -it "$image-$name" "$@" >/dev/null
+}
+
+usage() {
+    echo "Usage: $0 [OPTION...] [CMD]" >&2
+    echo "  -p PORT        Use specific port rather than the default (1337)" >&2
+    echo "  -n NAME        Use a specific name for the challenge instead of the default (docker-pwn)" >&2
+    echo "  -t TIMEOUT     Use a timeout for the challenge, the default is none" >&2
+    echo "  -s             Run an interactive shell in the container" >&2
+    echo "  -d             Dump system libraries (libc) to libc/ for distribution" >&2
+    echo "  -f             Force rebuild of Docker image" >&2
+    echo "  -r             Rebuild image without cache (implies -f)" >&2
+    echo "  -x             Stop the Docker image" >&2
+    echo "  -h             Show this help" >&2
+}
+
+echo "[*] Docker-PWN"
+while getopts "p:n:t:sdfrxh" opt; do
+    case "$opt" in
+        p)
+            if ! [[ "${OPTARG}" =~ ^[1-9][0-9]*$ ]]; then
+                echo "Error: ${OPTARG} is not a number" >&2
+                exit 1
+            fi
+            if [ "${OPTARG}" -le 1024 ]; then
+                echo "Error: Port number needs to be >1024" >&2
+                exit 2
+            fi
+            if [ "${OPTARG}" -ge 65536 ]; then
+                echo "Error: Port number needs to be <65536" >&2
+                exit 3
+            fi
+
+            if [ ${OPTARG} -ne 1337 ]; then
+                echo "[+] Configured port to: ${OPTARG}"
+            fi
+            port="${OPTARG}"
+            ;;
+        t)
+            if ! [[ "${OPTARG}" =~ ^[1-9][0-9]*$ ]]; then
+                echo "Error: ${OPTARG} is not a number" >&2
+                exit 1
+            fi
+            if [ "${OPTARG}" -le 1 ]; then
+                echo "Error: Timeout number needs to be >1" >&2
+                exit 2
+            fi
+            timeout="${OPTARG}"
+            ;;
+        n)
+            name="${OPTARG}"
+            if [ "$name" != "docker-pwn" ]; then
+                echo "[+] Configured name to: $name"
+            fi
+            ;;
+        s)
+            docker_shell
+            exit 0
+            ;;
+        d)
+            dump_libc
+            exit 0
+            ;;
+        f)
+            force_rebuild=1
+            ;;
+        r)
+            build_args+=(--no-cache)
+            force_rebuild=1
+            ;;
+        x)
+            docker_stop
+            exit 0
+            ;;
+        h)
+            usage
+            exit 1
+            ;;
+        *)
+            echo "Unknown option: $opt" >&2
+            usage
+            exit 2
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+is_docker_installed
+docker_run
+exit 0

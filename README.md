@@ -1,13 +1,13 @@
 # Docker-PWN
-'Minimalistic' docker-container for pwnables
+Dockerization for pwnables
 
 # Useage
-* add 'flag' and challenge binary as 'chall' to files/  
-* ```make deps```  (docker, docker-compose)
-* ```make init``` NAME="challname" PORT="port"  
-* ```make 32``` (for 32bit support)  
-* ```make run```  
+* Replace the `flag` and `chall` files in `data/ctf` and add other dependenices to that directory if needed
+* Add environment dependencies to `data/apt.deps` if needed
+* `./docker-pwn -h` or `./docker-pwn` to build and run the challenge on the default port of `1337`
 
-# Additional commands
-* ```make libc```
-* ```make shell```
+# Author
+Likvidera ([@likvidera](https://twitter.com/likvidera))
+
+# Credits
+OwariDa ([@OwariDa](https://twitter.com/owarida)) for bash-magic

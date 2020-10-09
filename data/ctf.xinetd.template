@@ -5,8 +5,8 @@ service ctf
 	protocol = tcp
 	wait = no
 	user = ctf
-	type = UNLISTED	
+	type = UNLISTED
 	bind = 0.0.0.0
-	port = TEMPLATE_PORT
-	server = /home/ctf/redir.sh
+	port = _REPLACE_PORT_
+	server = /home/ctf/run
 }
